@@ -50,6 +50,37 @@ contract DAOTreasury is Ownable {
     }
 
     /**
+     * @dev Spend funds based on an approved proposal
+     * @param proposalId  ID of the approved proposal
+     * @param recipient Address to send funds to 
+     * @param amount Amount to send
+     * @param token Token address (address(0) for ETH)
+     */
+    function spendFunds(uint256 proposalId, address recipient, uint256 amount, address token) external {
+        require(msg.sender == address(dao), "Only DAO can spend funds");
+        require(approvedProposals[proposalId], "Proposal not approved");
+        require(!executedProposals[proposalId], "Proposal already executed");
+        require(recipient != address(0), "Invalid recipient");
+        require(amount > 0, "Amount must be greater than 0");
+
+        executedProposals[proposalId] = true;
+
+        if(token == address(0)) {
+            // Send ETH
+            require(address(this).balance >= amount, "Insuficient ETH balance");
+            (bool succes,) = recipient.call{value: amount}("");
+            require(succes, "ETH transference failed");
+        } else {
+            // Send ERC20 token
+            IERC20 tokenContract = IERC20(token);
+            require(tokenContract.balanceOf(address(this)) >= amount, "Insufficient token balance");
+            require(tokenContract.transfer(recipient, amount), "Token transfer failed");
+        }
+
+        emit FundsSpend(proposalId, recipient, amount, token);
+    }
+
+    /**
      * @dev Fund the Treasury with ETH
      */
     function fundTreasury() external payable {
