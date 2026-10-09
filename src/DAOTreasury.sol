@@ -37,6 +37,18 @@ contract DAOTreasury is Ownable {
         emit DAOSet(_dao);
     }
 
+    /** 
+     * @dev Approve a proposal for spending (only DAO)
+     * @param proposalId Id of the proposal to approve
+    */
+    function approveProposal(uint256 proposalId) external {
+        require(msg.sender == address(dao), "Only DAO can approve proposals");
+        require(!approvedProposals[proposalId], "Proposal already approved");
+
+        approvedProposals[proposalId] = true;
+        emit ProposalApproved(proposalId);
+    }
+
     /**
      * @dev Fund the Treasury with ETH
      */
