@@ -65,4 +65,19 @@ contract DAOTreasury is Ownable {
     receive() external payable {
         emit TreasuryFunded(msg.sender, msg.value);
     }
+
+    function emergencyWithdraw(address token, uint256 amount, address receipient) external onlyOwner {
+        require(receipient != address(0), "Invalid receipient");
+        require(amount > 0, "Amount must be greater than 0");
+
+        if(token == address(0)) {
+            require(address(this).balance >= amount, "Insuficient ETH balance");
+            (bool success, ) = receipient.call{value: amount}("");
+            require(success, "ETH transfer failed");
+        } else {
+            IERC20 tokenContract = IERC20(token);
+            require(tokenContract.balanceOf(address(this)) >= amount, "Insufficient token balance");
+            require(tokenContract.transfer(receipient, amount), "Token transfer failed");
+        }
+    }
 }
