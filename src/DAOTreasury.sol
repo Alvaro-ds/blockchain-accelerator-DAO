@@ -95,7 +95,7 @@ contract DAOTreasury is Ownable {
      * @param amount Amount to fund
      */
     function fundTreasuryWithToken(address token, uint256 amount) external {
-        require(token != address(0), "Invlaid token address");
+        require(token != address(0), "Invalid token address");
         require(amount > 0, "Amount must be greater than 0");
 
         IERC20 tokenContract = IERC20(token);

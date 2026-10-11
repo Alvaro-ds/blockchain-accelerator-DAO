@@ -98,7 +98,7 @@ contract DAOtest is Test {
     }
 
     function testVotingPowerDelegation() public {
-        uint256 user1Amount = governanceToken.balanceOf(user1);
+        uint256 user1Amount = governanceToken.getVotingPower(user1);
         uint256 delegateAmount = 10000 * 10**18;
 
         vm.startPrank(user1);
@@ -109,5 +109,30 @@ contract DAOtest is Test {
         assertEq(governanceToken.getVotingPower(user1), user1Amount - delegateAmount);
         assertTrue(governanceToken.hasDelegated(user1));
         assertEq(governanceToken.delegates(user1), delegate);
+    }
+
+    function testVotingPowerUndelegation() public {
+        uint256 user1Amount = governanceToken.getVotingPower(user1);
+        uint256 delegateAmount = 10000 * 10**18;
+
+        vm.startPrank(user1);
+        governanceToken.delegateVotingPower(delegate, delegateAmount);
+        uint256 delegateBalance = governanceToken.getVotingPower(delegate);
+        
+        uint256 undelegateAmount = 5000 * 10**18;
+        governanceToken.undelegateVotingPower(undelegateAmount);
+        vm.stopPrank();
+        
+        assertEq(governanceToken.getVotingPower(delegate), delegateBalance - undelegateAmount);
+        assertEq(governanceToken.getVotingPower(user1), (user1Amount - delegateAmount) + undelegateAmount);
+    }
+
+    function test_RevertWhen_DelegationToZeroAddress() public {
+        uint256 delegateAmount = 1000 * 10**18;
+
+        vm.startPrank(user1);
+        vm.expectRevert("Cannot delegate to zero address");
+        governanceToken.delegateVotingPower(address(0), delegateAmount);
+        vm.stopPrank();
     }
 }
