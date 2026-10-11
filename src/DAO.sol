@@ -152,4 +152,27 @@ contract DAO is Ownable{
 
         emit ProposalCanceled(proposalId);
     }
+
+    /**
+     * @dev Execute a proposal if it has passed
+     * @param proposalId ID of the proposal to execute
+     */
+    function executeProposal(uint256 proposalId) external {
+        Proposal storage proposal = proposals[proposalId];
+
+        require(proposal.proposer != address(0), "Proposal does not exists");
+        require(block.timestamp >= proposal.endTime, "Voting not ended");
+        require(!proposal.executed, "Proposal already executed");
+        require(!proposal.canceled, "Proposal is canceled");
+        require(proposal.forVotes + proposal.againstVotes >= quorumVotes, "Quorum not reached");
+        require(proposal.forVotes > proposal.againstVotes, "Proposal not passed");
+
+        proposal.executed = true;
+
+        treasury.approveProposal(proposalId);
+
+        treasury.spendFunds(proposalId, proposal.recipient, proposal.amount, proposal.token);
+
+        emit ProposalExecuted(proposalId);
+    }
 }
