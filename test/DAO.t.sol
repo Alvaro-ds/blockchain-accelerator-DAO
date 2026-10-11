@@ -54,4 +54,35 @@ contract DAOtest is Test {
         governanceToken.mint(user3, 20000 * 10**18);
         vm.stopPrank();
     }
+
+    // ===================== Helper Functions =================
+
+    function createTestProposal(string memory description) internal returns(uint256 proposalID) {
+        return dao.createProposal(
+            description, 
+            user1, // recipient
+            1 ether, // amount: 1 ETH
+            address(0) // token: ETH
+        );
+    }
+
+    // ============= Governance Token Tests ==============
+    
+    function testTokenInicialization() public view{
+        assertEq(governanceToken.name(), "DAO Token");
+        assertEq(governanceToken.symbol(), "DAO");
+        assertEq(governanceToken.totalSupply(), 1100000 * 10**18); // Initial + minted to users
+        assertEq(governanceToken.balanceOf(owner), INITIAL_SUPPLY); // Initial supply
+    }
+
+    function testTokenMinting() public {
+        uint256 mintAmount = 1000 * 10**18;
+        uint256 user1Amount = governanceToken.balanceOf(user1);
+
+        vm.startPrank(owner);
+        governanceToken.mint(user1, mintAmount);
+        vm.stopPrank();
+
+        assertEq(governanceToken.balanceOf(user1), user1Amount + mintAmount);
+    }
 }
