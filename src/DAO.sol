@@ -135,4 +135,21 @@ contract DAO is Ownable{
 
         emit Voted(proposalId, msg.sender, support, votes);
     }
+
+    /**
+     * @dev Cancel a proposal
+     * @param proposalId ID of the proposal to cancel
+     */
+    function cancelProposal(uint256 proposalId) external {
+        Proposal storage proposal = proposals[proposalId];
+
+        require(proposal.proposer != address(0), "Proposal does not exist");
+        require(!proposal.executed, "Proposal already executed");
+        require(!proposal.canceled, "Proposal already canceled");
+        require(msg.sender == proposal.proposer || msg.sender == owner(), "Not authorized to cancle");
+
+        proposal.canceled = true;
+
+        emit ProposalCanceled(proposalId);
+    }
 }
