@@ -104,6 +104,37 @@ contract DAOTreasury is Ownable {
         emit TreasuryFunded(msg.sender, amount);
     }
 
+    /**
+     * @dev Get treasury balance for a specific token
+     * @param token Token address (address(0) for ETH
+     * @return balance Current balance
+     */
+    function getBalance(address token) external view returns(uint256 balance) {
+        if (token == address(0)) {
+            return address(this).balance;
+        } else {
+            return IERC20(token).balanceOf(address(this));
+        }
+     }
+
+     /**
+      * @dev Check if a proposal is approved
+      * @param proposalId ID of the proposal 
+      * @return approved Whether the proposal is approved
+      */
+    function isProposalApproved(uint256 proposalId) external view returns(bool approved) {
+        return approvedProposals[proposalId];
+    }
+
+    /**
+     * @dev Check if a proposal has been executed
+     * @param proposalId ID of the proposal
+     * @return executed Whether the proposal has been executed
+     */
+    function isProposalExecuted(uint256 proposalId) external view returns(bool executed) {
+        return executedProposals[proposalId];
+    }
+
     // Allow contract to receive ETH
     receive() external payable {
         emit TreasuryFunded(msg.sender, msg.value);
