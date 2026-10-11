@@ -175,4 +175,73 @@ contract DAO is Ownable{
 
         emit ProposalExecuted(proposalId);
     }
+
+    function getProposal(uint256 proposalId) external view returns(
+        address proposer,
+        string memory description, 
+        uint256 forVotes,
+        uint256 againstVotes, 
+         uint256 startTime,
+        uint256 endTime,
+        bool executed,
+        bool canceled,
+        address recipient,
+        uint256 amount,
+        address token
+    ) {
+        Proposal storage proposal = proposals[proposalId];
+        return (
+            proposal.proposer,
+            proposal.description,
+            proposal.forVotes,
+            proposal.againstVotes,
+            proposal.startTime,
+            proposal.endTime,
+            proposal.executed,
+            proposal.canceled,
+            proposal.recipient,
+            proposal.amount,
+            proposal.token
+        );
+    }
+
+    function getVoteInfo(uint256 proposalId, address voter) external view returns(bool hasVoted, bool votedFor) {
+        Proposal storage proposal = proposals[proposalId];
+        return(proposal.hasVoted[voter], proposal.votedFor[voter]);
+    }
+
+    function updateConfiguration(
+        uint256 _proposalThreshold,
+        uint256 _votingPeriod,
+        uint256 _quorumVotes
+    ) external onlyOwner {
+        proposalThreshold = _proposalThreshold;
+        votingPeriod = _votingPeriod;
+        quorumVotes = _quorumVotes;
+
+        emit ConfigurationUpdated(_proposalThreshold, _votingPeriod, _quorumVotes);
+    }
+
+    function setTreasury(address _treasury) external onlyOwner {
+        require(_treasury != address(0), "Invalid treasury address");
+        treasury = IDAOTreasury(_treasury);
+    }
+
+    function proposalPassed(uint256 proposalId) external view returns (bool passed) {
+        Proposal storage proposal = proposals[proposalId];
+
+        if (proposal.proposer == address(0) || proposal.canceled || proposal.executed) {
+            return false;
+        } 
+
+        if (block.timestamp < proposal.endTime) {
+            return false; // Voting not ended
+        }
+
+        if (proposal.forVotes + proposal.againstVotes < quorumVotes) {
+            return false; // Quorum not reached
+        }
+
+        return proposal.forVotes > proposal.againstVotes;
+    }
 }

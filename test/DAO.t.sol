@@ -135,4 +135,33 @@ contract DAOtest is Test {
         governanceToken.delegateVotingPower(address(0), delegateAmount);
         vm.stopPrank();
     }
+
+    function test_RevertWhen_DelegationToSelf() public {
+        uint256 delegateAmount = 1000 * 10**18;
+
+        vm.startPrank(user1);
+        vm.expectRevert("Cannot delegate to self");
+        governanceToken.delegateVotingPower(user1, delegateAmount);
+        vm.stopPrank();
+    }
+
+    // ============== DAO Tests ===================
+    function testProposalCreation() public {
+        string memory description = "Test proposal for funding";
+
+        vm.startPrank(user1);
+        uint256 proposalId = createTestProposal(description);
+        vm.stopPrank();
+
+        assertEq(porposalId, 0);
+        assertEq(dao.proposalCount(), 1);
+
+        (address proposer, string memory desc, , , uint256 startTime, uint256 endTime, bool executed, bool canceled,,,) = dao.getProposal(0);
+        assertEq(proposer, user1);
+        assertEq(desc, description);
+        assertEq(startTime, block.timestamp);
+        assertEq(endTime, block.timestamp + VOTING_PERIOD);
+        assertFalse(executed);
+        assertFalse(canceled);
+    }
 }
