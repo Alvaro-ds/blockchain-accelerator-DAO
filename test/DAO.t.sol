@@ -202,4 +202,75 @@ contract DAOtest is Test {
         dao.vote(proposalId, true);
         vm.stopPrank();
     }
+
+    function testProposalExecution() public {
+        // Fund treasury with ETH first
+        uint256 fundingAmount = 10 ether;
+        vm.deal(user1, fundingAmount);
+        vm.startPrank(user1);
+        treasury.fundTreasury{value: fundingAmount}();
+        vm.stopPrank();
+
+        // Create a proposal
+        vm.startPrank(user1);
+        uint256 proposalId = createTestProposal("Test proposal");
+        vm.stopPrank();
+
+        // Vote for the proposal with enough votes to meet quorum
+        vm.startPrank(user2);
+        dao.vote(proposalId, true);
+        vm.stopPrank();
+
+        // Fast forward past voting period
+        vm.warp(block.timestamp + VOTING_PERIOD + 1);
+
+        // Execute proposal
+        vm.startPrank(user1);
+        dao.executeProposal(proposalId);
+        vm.stopPrank();
+
+        (,,,,,, bool executed,,,,) = dao.getProposal(proposalId);
+        assertTrue(executed);
+    }
+
+    function test_RevertWhen_ProposalExecutionBeforeVotingEnds() public {
+        // Create proposal
+        vm.startPrank(user1);
+        uint256 proposalId = createTestProposal("Test proposal");
+        vm.stopPrank();
+
+        vm.expectRevert("Voting not ended");
+        dao.executeProposal(proposalId);
+    }
+
+    function test_RevertWhen_ProposalExecutionInsufficientQuorum() public {
+        // Fund treasury with ETH first
+        uint256 fundingAmount = 10 ether;
+        vm.deal(user1, fundingAmount);
+        vm.startPrank(user1);
+        treasury.fundTreasury{value: fundingAmount}();
+        vm.stopPrank();
+        
+        // Create proposal
+        vm.startPrank(user1);
+        uint256 proposalId = createTestProposal("Test proposal");
+        vm.stopPrank();
+        
+        // We make user3 to burn some tokens so he does not reach the quorum
+        vm.startPrank(user3);
+        governanceToken.burn(15000 * 10**18);
+        dao.vote(proposalId, true);
+        vm.stopPrank();
+        
+        // Fast forward past voting period
+        vm.warp(block.timestamp + VOTING_PERIOD + 1);
+        
+        vm.startPrank(user1);
+        vm.expectRevert("Quorum not reached");
+        dao.executeProposal(proposalId);
+        vm.stopPrank();
+        
+        (,,,,,, bool executed,,,,) = dao.getProposal(proposalId);
+        assertFalse(executed);
+    }
 }
