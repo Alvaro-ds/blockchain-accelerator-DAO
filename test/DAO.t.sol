@@ -273,4 +273,47 @@ contract DAOtest is Test {
         (,,,,,, bool executed,,,,) = dao.getProposal(proposalId);
         assertFalse(executed);
     }
+
+    function testProposalCancellation() public{
+        // Create proposal
+        vm.startPrank(user1);
+        uint256 proposalId = createTestProposal("Test proposal");
+        dao.cancelProposal(proposalId);
+        vm.stopPrank();
+
+        (,,,,,,, bool canceled,,,)= dao.getProposal(proposalId);
+        assertTrue(canceled);
+    }
+
+    function test_RevertWhen_ProposalCancellationByUnauthorized() public {
+        vm.startPrank(user1);
+        uint256 proposalId = createTestProposal("Test proposal");
+        vm.stopPrank();
+
+        vm.startPrank(user2);
+        vm.expectRevert("Not authorized to cancel");
+        dao.cancelProposal(proposalId);
+        vm.stopPrank();
+
+        (,,,,,,, bool canceled,,,)= dao.getProposal(proposalId);
+        assertFalse(canceled);
+    }
+
+    function testVoteInfo() public {
+        vm.startPrank(user1);
+        uint256 proposalId = createTestProposal("Test proposal");
+        vm.stopPrank();
+
+        vm.startPrank(user2);
+        dao.vote(proposalId, true);
+        vm.stopPrank();
+
+        (bool hasVoted, bool votedFor) = dao.getVoteInfo(proposalId, user2);
+        assertTrue(hasVoted);
+        assertTrue(votedFor);
+
+        (hasVoted, votedFor) = dao.getVoteInfo(proposalId, user3);
+        assertFalse(hasVoted);
+        assertFalse(votedFor);
+    }
 }

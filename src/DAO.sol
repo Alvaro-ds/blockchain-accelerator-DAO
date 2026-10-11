@@ -146,7 +146,7 @@ contract DAO is Ownable{
         require(proposal.proposer != address(0), "Proposal does not exist");
         require(!proposal.executed, "Proposal already executed");
         require(!proposal.canceled, "Proposal already canceled");
-        require(msg.sender == proposal.proposer || msg.sender == owner(), "Not authorized to cancle");
+        require(msg.sender == proposal.proposer || msg.sender == owner(), "Not authorized to cancel");
 
         proposal.canceled = true;
 
