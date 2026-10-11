@@ -153,7 +153,7 @@ contract DAOtest is Test {
         uint256 proposalId = createTestProposal(description);
         vm.stopPrank();
 
-        assertEq(porposalId, 0);
+        assertEq(proposalId, 0);
         assertEq(dao.proposalCount(), 1);
 
         (address proposer, string memory desc, , , uint256 startTime, uint256 endTime, bool executed, bool canceled,,,) = dao.getProposal(0);
@@ -163,5 +163,43 @@ contract DAOtest is Test {
         assertEq(endTime, block.timestamp + VOTING_PERIOD);
         assertFalse(executed);
         assertFalse(canceled);
+    }
+
+    function testVoting() public {
+        // Create proposal
+        vm.startPrank(user1);
+        uint256 proposalId = createTestProposal("Test proposal");
+        vm.stopPrank();
+
+        // Vote for the proposal
+        vm.startPrank(user2);
+        dao.vote(proposalId, true);
+        vm.stopPrank();
+
+        // Vote against the proposal
+        vm.startPrank(user3);
+        dao.vote(proposalId, false);
+        vm.stopPrank();
+
+        (,, uint256 forVotes, uint256 againstVotes, , , bool executed, bool canceled, , ,) = dao.getProposal(proposalId);
+        assertEq(forVotes, governanceToken.getVotingPower(user2));
+        assertEq(againstVotes, governanceToken.getVotingPower(user3));
+        assertFalse(executed);
+        assertFalse(canceled);
+    }
+
+    function test_RevertWhen_VotingTwice() public {
+        // Create proposal
+        vm.startPrank(user1);
+        uint256 proposalId = createTestProposal("Test proposal");
+        vm.stopPrank();
+
+        // Vote for the proposal
+        vm.startPrank(user2);
+        dao.vote(proposalId, true);
+
+        vm.expectRevert("Already voted");
+        dao.vote(proposalId, true);
+        vm.stopPrank();
     }
 }
