@@ -316,4 +316,111 @@ contract DAOtest is Test {
         assertFalse(hasVoted);
         assertFalse(votedFor);
     }
+
+    function testProposalPassed() public {
+        uint256 fundingAmount = 10 ether;
+        vm.deal(user1, fundingAmount);
+        vm.startPrank(user1);
+        treasury.fundTreasury{value: fundingAmount}();
+        vm.stopPrank();
+        
+        vm.startPrank(user1);
+        uint256 proposalId = createTestProposal("Test proposal");
+        vm.stopPrank();
+
+        vm.startPrank(user2);
+        dao.vote(proposalId, true);
+        vm.stopPrank();
+
+        vm.startPrank(user3);
+        dao.vote(proposalId, false);
+        vm.stopPrank();
+
+        vm.warp(block.timestamp + VOTING_PERIOD + 1);
+
+        (bool passed) = dao.proposalPassed(proposalId);
+        assertTrue(passed);
+    }
+
+    // ============= Treasury Tests ===========
+
+    function testTreasuryFunding() public{
+        uint256 fundingAmount = 10 ether;
+        
+        vm.deal(user1, fundingAmount);
+        vm.startPrank(user1);
+        treasury.fundTreasury{value: fundingAmount}();
+        vm.stopPrank();
+
+        assertEq(treasury.getBalance(address(0)), fundingAmount);
+    }
+
+    function testTreasuryTokenFunding() public {
+        uint fundingAmount = 1000 * 10**18;
+
+        vm.startPrank(user1);
+        governanceToken.approve(address(treasury), fundingAmount);
+        treasury.fundTreasuryWithToken(address(governanceToken), fundingAmount);
+        vm.stopPrank();
+
+        assertEq(treasury.getBalance(address(governanceToken)), fundingAmount);
+    }
+
+    function testProposalApproval() public {
+        vm.startPrank(user1);
+        uint256 proposalId = createTestProposal("Test proposal");
+        vm.stopPrank();
+        
+        vm.startPrank(address(dao));
+        treasury.approveProposal(proposalId);
+        vm.stopPrank();
+
+        assertTrue(treasury.isProposalApproved(proposalId));
+    }
+
+    function test_RevertWhen_ProposalApprovalByUnauthorized() public {
+        vm.startPrank(user1);
+        vm.expectRevert("Only DAO can approve proposals");
+        treasury.approveProposal(1);
+        vm.stopPrank();
+    }
+
+    function testFundSpending() public {
+        uint256 fundingAmount = 10 ether;
+        uint256 spendingAmount = 5 ether;
+
+        vm.deal(user1, fundingAmount);
+        vm.startPrank(user1);
+        treasury.fundTreasury{value: fundingAmount}();
+        
+        uint256 proposalId = createTestProposal("Test proposal");
+        vm.stopPrank();
+
+        vm.startPrank(address(dao));
+        treasury.approveProposal(proposalId);
+
+        treasury.spendFunds(proposalId, user1, spendingAmount, address(0));
+        vm.stopPrank();
+
+        assertEq(treasury.getBalance(address(0)), fundingAmount - spendingAmount);
+        assertEq(user1.balance, spendingAmount);
+        assertTrue(treasury.isProposalExecuted(proposalId));
+    }
+
+    function test_RevertWhen_FundSpendingWithoutApproval() public {
+        uint256 fundingAmount = 10 ether;
+        uint256 spendingAmount = 5 ether;
+
+        vm.deal(user1, fundingAmount);
+        vm.startPrank(user1);
+        treasury.fundTreasury{value: fundingAmount}();
+        
+        uint256 proposalId = createTestProposal("Test proposal");
+        vm.stopPrank();
+
+        vm.startPrank(address(dao));
+        vm.expectRevert("Proposal not approved");
+        treasury.spendFunds(proposalId, user1, spendingAmount, address(0));
+        vm.stopPrank();
+    }
 }
