@@ -105,4 +105,34 @@ contract DAO is Ownable{
 
         emit ProposalCreated(proposalId, msg.sender, description, proposal.recipient, proposal.amount, proposal.token, proposal.startTime, proposal.endTime);
     }
+
+    /**
+     * @dev Vote on a proposal
+     * @param proposalId ID of the proposal to vote on
+     * @param support True for yes, false for no
+     */
+    function vote(uint256 proposalId, bool support) external {
+        Proposal storage proposal = proposals[proposalId];
+
+        require(proposal.proposer != address(0), "Proposal does not exist");
+        require(block.timestamp >= proposal.startTime, "Voting not started");
+        require(block.timestamp < proposal.endTime, "Voting ended");
+        require(!proposal.hasVoted[msg.sender], "Already voted");
+        require(!proposal.canceled, "Proposal is canceled");
+        require(!proposal.executed, "Proposal already executed");
+
+        uint256 votes = governanceToken.getVotingPower(msg.sender);
+        require(votes > 0, "No voting power");
+
+        proposal.hasVoted[msg.sender] = true;
+        proposal.votedFor[msg.sender] = support;
+
+        if (support) {
+            proposal.forVotes += votes;
+        } else {
+            proposal.againstVotes += votes;
+        }
+
+        emit Voted(proposalId, msg.sender, support, votes);
+    }
 }
