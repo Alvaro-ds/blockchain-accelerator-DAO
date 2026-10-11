@@ -85,4 +85,29 @@ contract DAOtest is Test {
 
         assertEq(governanceToken.balanceOf(user1), user1Amount + mintAmount);
     }
+
+    function testTokenBurning() public {
+        uint256 user1Amount = governanceToken.balanceOf(user1);
+        uint256 burnAmount = 1000 * 10**18;
+
+        vm.startPrank(user1);
+        governanceToken.burn(burnAmount);
+        vm.stopPrank();
+
+        assertEq(governanceToken.balanceOf(user1), user1Amount - burnAmount);
+    }
+
+    function testVotingPowerDelegation() public {
+        uint256 user1Amount = governanceToken.balanceOf(user1);
+        uint256 delegateAmount = 10000 * 10**18;
+
+        vm.startPrank(user1);
+        governanceToken.delegateVotingPower(delegate, delegateAmount);
+        vm.stopPrank();
+
+        assertEq(governanceToken.getVotingPower(delegate), delegateAmount);
+        assertEq(governanceToken.getVotingPower(user1), user1Amount - delegateAmount);
+        assertTrue(governanceToken.hasDelegated(user1));
+        assertEq(governanceToken.delegates(user1), delegate);
+    }
 }
