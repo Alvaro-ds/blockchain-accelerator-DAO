@@ -611,4 +611,27 @@ contract DAOtest is Test {
         dao.createProposal("", user1, 1 ether, address(0));
         vm.stopPrank();
     }
+
+    function test_RevertWhen_CreateProposalZeroRecipient() public {
+        vm.startPrank(user1);
+        vm.expectRevert("Invalid recipient address");
+        dao.createProposal("Test", address(0), 1 ether, address(0));
+        vm.stopPrank();
+    }
+
+    function test_RevertWhen_CreateProposalZeroAmount() public {
+        vm.startPrank(user1);
+        vm.expectRevert("Amount must be greater than 0");
+        dao.createProposal("Test", user1, 0, address(0));
+        vm.stopPrank();
+    }
+
+    // ============= Branch Coverage: DAO Voting ==============
+
+    function test_RevertWhen_VoteOnNonExistentProposal() public {
+        vm.startPrank(user1);
+        vm.expectRevert("Proposal does not exist");
+        dao.vote(999, true);
+        vm.stopPrank();
+    }
 }
