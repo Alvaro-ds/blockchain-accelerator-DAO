@@ -7,7 +7,8 @@ import "./DAOGovernanceToken.sol";
 
 /**
  * @title IDAOTreasury
- * @dev Interface for DAO Treasury contract functions
+ * @notice Interface for the DAO Treasury contract.
+ * @dev Exposes only the functions the DAO needs to call on the treasury.
  */
 interface IDAOTreasury {
     function approveProposal(uint256 proposalId) external;
@@ -17,16 +18,22 @@ interface IDAOTreasury {
 /**
  * @title DAO
  * @author Alvaro Dapena
- * @dev Decentralized Autonomous Organization contract 
- * Handles proposal creation, voting and execution
+ * @notice Decentralized Autonomous Organization: handles proposal creation, voting, and execution.
+ * @dev Voting power is derived from the associated DAOGovernanceToken balance.
+ * Proposals that pass quorum and receive more for-votes than against-votes
+ * are executed by the linked DAOTreasury.
  */
-contract DAO is Ownable{
-
+contract DAO is Ownable {
+    /// @notice Governance token whose balance determines each address's voting power.
     DAOGovernanceToken public governanceToken;
 
+    /// @notice Treasury contract that holds and disburses funds on behalf of the DAO.
     IDAOTreasury public treasury;
 
-    // Proposal struct
+    /**
+     * @notice On-chain record of a governance proposal.
+     * @dev Mappings inside a struct cannot be returned directly; use getProposal / getVoteInfo.
+     */
     struct Proposal {
         uint256 id;
         address proposer;
@@ -44,30 +51,72 @@ contract DAO is Ownable{
         mapping(address => bool) votedFor;
     }
 
-    // DAO configuration
+    /// @notice Minimum governance tokens required to submit a proposal.
     uint256 public proposalThreshold;
+
+    /// @notice Duration of the voting window in seconds.
     uint256 public votingPeriod;
+
+    /// @notice Minimum total votes (for + against) required for a proposal to be executable.
     uint256 public quorumVotes;
 
-    // Proposal tracking
+    /// @notice Total number of proposals ever created (also the next proposal's ID).
     uint256 public proposalCount;
+
+    /// @notice Storage mapping from proposal ID to Proposal data.
     mapping(uint256 => Proposal) public proposals;
 
-    // Events
+    /**
+     * @notice Emitted when a new proposal is submitted.
+     * @param proposalId Unique identifier assigned to the proposal.
+     * @param proposer Address that created the proposal.
+     * @param description Human-readable description of the proposal.
+     * @param recipient Address that will receive funds if the proposal passes.
+     * @param amount Amount of funds to transfer on execution.
+     * @param token Token address (address(0) for ETH).
+     * @param startTime Timestamp when voting opens.
+     * @param endTime Timestamp when voting closes.
+     */
     event ProposalCreated(uint256 indexed proposalId, address indexed proposer, string description, address recipient, uint256 amount, address token, uint256 startTime, uint256 endTime);
+
+    /**
+     * @notice Emitted when an address casts a vote.
+     * @param proposalId Proposal that was voted on.
+     * @param voter Address that cast the vote.
+     * @param support True if the vote is in favour, false if against.
+     * @param votes Number of governance tokens behind the vote.
+     */
     event Voted(uint256 indexed proposalId, address indexed voter, bool support, uint256 votes);
+
+    /**
+     * @notice Emitted when a passing proposal is executed and funds are disbursed.
+     * @param proposalId ID of the executed proposal.
+     */
     event ProposalExecuted(uint256 indexed proposalId);
+
+    /**
+     * @notice Emitted when a proposal is canceled before execution.
+     * @param proposalId ID of the canceled proposal.
+     */
     event ProposalCanceled(uint256 indexed proposalId);
+
+    /**
+     * @notice Emitted when the DAO's governance parameters are updated.
+     * @param proposalThreshols Minimum tokens required to create a proposal.
+     * @param votingPeriod Duration of the voting period in seconds.
+     * @param quorumVotes Minimum total votes required for a valid result.
+     */
     event ConfigurationUpdated(uint256 proposalThreshols, uint256 votingPeriod, uint256 quorumVotes);
 
-    /** 
-     * @dev Constructor
-     * @param _governanceToken Address of the governance token contract
-     * @param _proposalThreshold Minimum tokens required to create a proposal
-     * @param _votingPeriod Duration of the voting preiod in seconds
-     * @param _quorumVotes Minimum votes required for proposal to pass
+    /**
+     * @notice Initialises the DAO with its governance token, treasury, and voting parameters.
+     * @param _governanceToken Address of the DAOGovernanceToken contract.
+     * @param _treasury Address of the DAOTreasury contract.
+     * @param _proposalThreshold Minimum tokens required to create a proposal.
+     * @param _votingPeriod Duration of the voting period in seconds.
+     * @param _quorumVotes Minimum total votes required for a proposal to be executable.
      */
-    constructor(address _governanceToken,address _treasury, uint256 _proposalThreshold, uint256 _votingPeriod, uint256 _quorumVotes) Ownable(msg.sender) {
+    constructor(address _governanceToken, address _treasury, uint256 _proposalThreshold, uint256 _votingPeriod, uint256 _quorumVotes) Ownable(msg.sender) {
         governanceToken = DAOGovernanceToken(_governanceToken);
         treasury = IDAOTreasury(_treasury);
         proposalThreshold = _proposalThreshold;
@@ -76,14 +125,15 @@ contract DAO is Ownable{
     }
 
     /**
-     * @dev Create a new proposal
-     * @param description Description of the proposal
-     * @param recipient Address to receive funds if proposal passes
-     * @param amount Amount of funds to be spent
-     * @param token Token address (address(0) for ETH)
-     * @return proposalId The ID of the created proposal
+     * @notice Submits a new governance proposal requesting a treasury transfer.
+     * @dev The caller must hold at least `proposalThreshold` tokens.
+     * @param description Human-readable description of the proposal. Must not be empty.
+     * @param recipient Address to receive funds if the proposal passes. Must not be address(0).
+     * @param amount Amount of funds to transfer on execution. Must be greater than zero.
+     * @param token Token address (address(0) to request ETH).
+     * @return proposalId The ID assigned to the newly created proposal.
      */
-    function createProposal(string memory description, address recipient, uint256 amount, address token) external returns(uint256 proposalId) {
+    function createProposal(string memory description, address recipient, uint256 amount, address token) external returns (uint256 proposalId) {
         require(governanceToken.getVotingPower(msg.sender) >= proposalThreshold, "Insufficient voting power to create proposal");
         require(bytes(description).length > 0, "Description cannot be empty");
         require(recipient != address(0), "Invalid recipient address");
@@ -107,9 +157,10 @@ contract DAO is Ownable{
     }
 
     /**
-     * @dev Vote on a proposal
-     * @param proposalId ID of the proposal to vote on
-     * @param support True for yes, false for no
+     * @notice Casts a vote on an active proposal.
+     * @dev Each address may vote once per proposal. Voting power equals the caller's token balance at the time of the call.
+     * @param proposalId ID of the proposal to vote on.
+     * @param support True to vote in favour, false to vote against.
      */
     function vote(uint256 proposalId, bool support) external {
         Proposal storage proposal = proposals[proposalId];
@@ -137,8 +188,9 @@ contract DAO is Ownable{
     }
 
     /**
-     * @dev Cancel a proposal
-     * @param proposalId ID of the proposal to cancel
+     * @notice Cancels a proposal, preventing it from being executed.
+     * @dev Only the original proposer or the contract owner may cancel a proposal.
+     * @param proposalId ID of the proposal to cancel.
      */
     function cancelProposal(uint256 proposalId) external {
         Proposal storage proposal = proposals[proposalId];
@@ -154,8 +206,10 @@ contract DAO is Ownable{
     }
 
     /**
-     * @dev Execute a proposal if it has passed
-     * @param proposalId ID of the proposal to execute
+     * @notice Executes a proposal that has passed voting, triggering the treasury transfer.
+     * @dev Requires: voting period ended, quorum met, more for-votes than against-votes,
+     * proposal not previously executed or canceled.
+     * @param proposalId ID of the proposal to execute.
      */
     function executeProposal(uint256 proposalId) external {
         Proposal storage proposal = proposals[proposalId];
@@ -176,45 +230,45 @@ contract DAO is Ownable{
         emit ProposalExecuted(proposalId);
     }
 
-    function getProposal(uint256 proposalId) external view returns(
-        address proposer,
-        string memory description, 
-        uint256 forVotes,
-        uint256 againstVotes, 
-         uint256 startTime,
-        uint256 endTime,
-        bool executed,
-        bool canceled,
-        address recipient,
-        uint256 amount,
-        address token
-    ) {
+    /**
+     * @notice Returns all stored fields of a proposal (excluding the internal vote mappings).
+     * @param proposalId ID of the proposal to query.
+     * @return proposer Address that created the proposal.
+     * @return description Human-readable proposal description.
+     * @return forVotes Cumulative votes cast in favour.
+     * @return againstVotes Cumulative votes cast against.
+     * @return startTime Timestamp when voting opened.
+     * @return endTime Timestamp when voting closes.
+     * @return executed Whether the proposal has been executed.
+     * @return canceled Whether the proposal has been canceled.
+     * @return recipient Address designated to receive the funds.
+     * @return amount Amount of funds to transfer.
+     * @return token Token address (address(0) for ETH).
+     */
+    function getProposal(uint256 proposalId) external view returns (address proposer, string memory description, uint256 forVotes, uint256 againstVotes, uint256 startTime, uint256 endTime, bool executed, bool canceled, address recipient, uint256 amount, address token) {
         Proposal storage proposal = proposals[proposalId];
-        return (
-            proposal.proposer,
-            proposal.description,
-            proposal.forVotes,
-            proposal.againstVotes,
-            proposal.startTime,
-            proposal.endTime,
-            proposal.executed,
-            proposal.canceled,
-            proposal.recipient,
-            proposal.amount,
-            proposal.token
-        );
+        return (proposal.proposer, proposal.description, proposal.forVotes, proposal.againstVotes, proposal.startTime, proposal.endTime, proposal.executed, proposal.canceled, proposal.recipient, proposal.amount, proposal.token);
     }
 
-    function getVoteInfo(uint256 proposalId, address voter) external view returns(bool hasVoted, bool votedFor) {
+    /**
+     * @notice Returns whether an address has voted on a proposal and how they voted.
+     * @param proposalId ID of the proposal to query.
+     * @param voter Address to look up.
+     * @return hasVoted True if `voter` has cast a vote on this proposal.
+     * @return votedFor True if `voter` voted in favour (only meaningful when hasVoted is true).
+     */
+    function getVoteInfo(uint256 proposalId, address voter) external view returns (bool hasVoted, bool votedFor) {
         Proposal storage proposal = proposals[proposalId];
-        return(proposal.hasVoted[voter], proposal.votedFor[voter]);
+        return (proposal.hasVoted[voter], proposal.votedFor[voter]);
     }
 
-    function updateConfiguration(
-        uint256 _proposalThreshold,
-        uint256 _votingPeriod,
-        uint256 _quorumVotes
-    ) external onlyOwner {
+    /**
+     * @notice Updates the DAO's governance parameters. Only callable by the owner.
+     * @param _proposalThreshold New minimum tokens required to create a proposal.
+     * @param _votingPeriod New voting period duration in seconds.
+     * @param _quorumVotes New minimum total votes required for a valid result.
+     */
+    function updateConfiguration(uint256 _proposalThreshold, uint256 _votingPeriod, uint256 _quorumVotes) external onlyOwner {
         proposalThreshold = _proposalThreshold;
         votingPeriod = _votingPeriod;
         quorumVotes = _quorumVotes;
@@ -222,17 +276,29 @@ contract DAO is Ownable{
         emit ConfigurationUpdated(_proposalThreshold, _votingPeriod, _quorumVotes);
     }
 
+    /**
+     * @notice Replaces the treasury contract address. Only callable by the owner.
+     * @param _treasury New treasury address. Must not be address(0).
+     */
     function setTreasury(address _treasury) external onlyOwner {
         require(_treasury != address(0), "Invalid treasury address");
         treasury = IDAOTreasury(_treasury);
     }
 
+    /**
+     * @notice Returns whether a proposal has passed and is eligible for execution.
+     * @dev Returns false if the proposal does not exist, is canceled, is already executed,
+     * the voting period has not ended, quorum has not been reached, or for-votes do not
+     * exceed against-votes.
+     * @param proposalId ID of the proposal to evaluate.
+     * @return passed True if the proposal has passed all conditions for execution.
+     */
     function proposalPassed(uint256 proposalId) external view returns (bool passed) {
         Proposal storage proposal = proposals[proposalId];
 
         if (proposal.proposer == address(0) || proposal.canceled || proposal.executed) {
             return false;
-        } 
+        }
 
         if (block.timestamp < proposal.endTime) {
             return false; // Voting not ended
