@@ -1038,4 +1038,42 @@ contract DAOtest is Test {
         treasury.emergencyWithdraw(address(0), 1 ether, address(0));
         vm.stopPrank();
     }
+
+    function test_RevertWhen_EmergencyWithdrawZeroAmount() public {
+        uint256 fundingAmount = 5 ether;
+        vm.deal(user1, fundingAmount);
+        vm.startPrank(user1);
+        treasury.fundTreasury{value: fundingAmount}();
+        vm.stopPrank();
+
+        vm.startPrank(owner);
+        vm.expectRevert("Amount must be greater than 0");
+        treasury.emergencyWithdraw(address(0), 0, user2);
+        vm.stopPrank();
+    }
+
+    function testEmergencyWithdrawToken() public {
+        uint256 fundingAmount = 1000 * 10 ** 18;
+
+        vm.startPrank(user1);
+        governanceToken.approve(address(treasury), fundingAmount);
+        treasury.fundTreasuryWithToken(address(governanceToken), fundingAmount);
+        vm.stopPrank();
+
+        uint256 user2BalanceBefore = governanceToken.balanceOf(user2);
+
+        vm.startPrank(owner);
+        treasury.emergencyWithdraw(address(governanceToken), fundingAmount, user2);
+        vm.stopPrank();
+
+        assertEq(governanceToken.balanceOf(user2), user2BalanceBefore + fundingAmount);
+        assertEq(treasury.getBalance(address(governanceToken)), 0);
+    }
+
+    function test_RevertWhen_FundTreasuryWithTokenZeroAddress() public {
+        vm.startPrank(user1);
+        vm.expectRevert("Invalid token address");
+        treasury.fundTreasuryWithToken(address(0), 1000 * 10 ** 18);
+        vm.stopPrank();
+    }
 }
