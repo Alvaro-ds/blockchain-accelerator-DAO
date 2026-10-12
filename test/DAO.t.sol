@@ -787,4 +787,29 @@ contract DAOtest is Test {
         dao.cancelProposal(proposalId);
         vm.stopPrank();
     }
+
+    function test_RevertWhen_CancelAlreadyCanceled() public {
+        vm.startPrank(user1);
+        uint256 proposalId = createTestProposal("Test proposal");
+        dao.cancelProposal(proposalId);
+        vm.expectRevert("Proposal already canceled");
+        dao.cancelProposal(proposalId);
+        vm.stopPrank();
+    }
+
+    function test_RevertWhen_CancelNonExistentProposal() public {
+        vm.startPrank(user1);
+        vm.expectRevert("Proposal does not exist");
+        dao.cancelProposal(999);
+        vm.stopPrank();
+    }
+
+    // ============= Branch Coverage: DAO Configuration ==============
+
+    function test_RevertWhen_UpdateConfigurationByNonOwner() public {
+        vm.startPrank(user1);
+        vm.expectRevert(abi.encodeWithSelector(Ownable.OwnableUnauthorizedAccount.selector, user1));
+        dao.updateConfiguration(1000, 7 days, 10000);
+        vm.stopPrank();
+    }
 }
