@@ -889,4 +889,39 @@ contract DAOtest is Test {
         vm.warp(block.timestamp + VOTING_PERIOD + 1);
         assertFalse(dao.proposalPassed(proposalId));
     }
+
+    function testProposalPassedReturnsFalseWithInsufficientQuorum() public {
+        vm.startPrank(user1);
+        uint256 proposalId = createTestProposal("Test proposal");
+        vm.stopPrank();
+
+        vm.startPrank(user3);
+        governanceToken.burn(15000 * 10 ** 18);
+        dao.vote(proposalId, true);
+        vm.stopPrank();
+
+        vm.warp(block.timestamp + VOTING_PERIOD + 1);
+        assertFalse(dao.proposalPassed(proposalId));
+    }
+
+    // ============= Branch Coverage: DAOTreasury ==============
+
+    function test_RevertWhen_SetDAOToZeroAddress() public {
+        vm.startPrank(owner);
+        vm.expectRevert("Invalid DAO address");
+        treasury.setDAO(address(0));
+        vm.stopPrank();
+    }
+
+    function test_RevertWhen_ApproveProposalAlreadyApproved() public {
+        vm.startPrank(user1);
+        uint256 proposalId = createTestProposal("Test proposal");
+        vm.stopPrank();
+
+        vm.startPrank(address(dao));
+        treasury.approveProposal(proposalId);
+        vm.expectRevert("Proposal already approved");
+        treasury.approveProposal(proposalId);
+        vm.stopPrank();
+    }
 }
