@@ -718,4 +718,73 @@ contract DAOtest is Test {
         dao.executeProposal(proposalId);
         vm.stopPrank();
     }
+
+    function test_RevertWhen_ExecuteAlreadyExecuted() public {
+        uint256 fundingAmount = 10 ether;
+        vm.deal(user1, fundingAmount);
+        vm.startPrank(user1);
+        treasury.fundTreasury{value: fundingAmount}();
+        uint256 proposalId = createTestProposal("Test proposal");
+        vm.stopPrank();
+
+        vm.startPrank(user2);
+        dao.vote(proposalId, true);
+        vm.stopPrank();
+
+        vm.warp(block.timestamp + VOTING_PERIOD + 1);
+
+        vm.startPrank(user1);
+        dao.executeProposal(proposalId);
+        vm.expectRevert("Proposal already executed");
+        dao.executeProposal(proposalId);
+        vm.stopPrank();
+    }
+
+    function test_RevertWhen_ExecuteForVotesEqualAgainstVotes() public {
+        uint256 fundingAmount = 10 ether;
+        vm.deal(user1, fundingAmount);
+        vm.startPrank(user1);
+        treasury.fundTreasury{value: fundingAmount}();
+        uint256 proposalId = createTestProposal("Test proposal");
+        vm.stopPrank();
+
+        vm.startPrank(user2);
+        governanceToken.burn(10000 * 10 ** 18);
+        dao.vote(proposalId, true);
+        vm.stopPrank();
+
+        vm.startPrank(user3);
+        dao.vote(proposalId, false);
+        vm.stopPrank();
+
+        vm.warp(block.timestamp + VOTING_PERIOD + 1);
+
+        vm.startPrank(user1);
+        vm.expectRevert("Proposal not passed");
+        dao.executeProposal(proposalId);
+        vm.stopPrank();
+    }
+
+    // ============= Branch Coverage: DAO Cancel ==============
+
+    function test_RevertWhen_CancelExecutedProposal() public {
+        uint256 fundingAmount = 10 ether;
+        vm.deal(user1, fundingAmount);
+        vm.startPrank(user1);
+        treasury.fundTreasury{value: fundingAmount}();
+        uint256 proposalId = createTestProposal("Test proposal");
+        vm.stopPrank();
+
+        vm.startPrank(user2);
+        dao.vote(proposalId, true);
+        vm.stopPrank();
+
+        vm.warp(block.timestamp + VOTING_PERIOD + 1);
+
+        vm.startPrank(user1);
+        dao.executeProposal(proposalId);
+        vm.expectRevert("Proposal already executed");
+        dao.cancelProposal(proposalId);
+        vm.stopPrank();
+    }
 }
