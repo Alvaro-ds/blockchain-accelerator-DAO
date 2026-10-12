@@ -812,4 +812,30 @@ contract DAOtest is Test {
         dao.updateConfiguration(1000, 7 days, 10000);
         vm.stopPrank();
     }
+
+    function test_RevertWhen_SetTreasuryZeroAddress() public {
+        vm.startPrank(owner);
+        vm.expectRevert("Invalid treasury address");
+        dao.setTreasury(address(0));
+        vm.stopPrank();
+    }
+
+    function test_RevertWhen_SetTreasuryByNonOwner() public {
+        vm.startPrank(user1);
+        vm.expectRevert(abi.encodeWithSelector(Ownable.OwnableUnauthorizedAccount.selector, user1));
+        dao.setTreasury(address(treasury));
+        vm.stopPrank();
+    }
+
+    // ============= Branch Coverage: proposalPassed ==============
+
+    function testProposalPassedReturnsFalseWhenCanceled() public {
+        vm.startPrank(user1);
+        uint256 proposalId = createTestProposal("Test proposal");
+        dao.cancelProposal(proposalId);
+        vm.stopPrank();
+
+        vm.warp(block.timestamp + VOTING_PERIOD + 1);
+        assertFalse(dao.proposalPassed(proposalId));
+    }
 }
