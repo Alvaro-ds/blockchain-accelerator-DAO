@@ -587,4 +587,28 @@ contract DAOtest is Test {
         assertEq(governanceToken.delegates(user1), address(0));
         assertEq(governanceToken.delegatedVotes(delegate), 0);
     }
+
+    // ============= Branch Coverage: GovernanceToken Mint / DAO Proposal Creation ==============
+
+    function test_RevertWhen_MintByNonOwner() public {
+        vm.startPrank(user1);
+        vm.expectRevert(abi.encodeWithSelector(Ownable.OwnableUnauthorizedAccount.selector, user1));
+        governanceToken.mint(user2, 1000 * 10 ** 18);
+        vm.stopPrank();
+    }
+
+    function test_RevertWhen_CreateProposalInsufficientVotingPower() public {
+        address poorUser = address(6);
+        vm.startPrank(poorUser);
+        vm.expectRevert("Insufficient voting power to create proposal");
+        dao.createProposal("Test", user1, 1 ether, address(0));
+        vm.stopPrank();
+    }
+
+    function test_RevertWhen_CreateProposalEmptyDescription() public {
+        vm.startPrank(user1);
+        vm.expectRevert("Description cannot be empty");
+        dao.createProposal("", user1, 1 ether, address(0));
+        vm.stopPrank();
+    }
 }
