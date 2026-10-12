@@ -959,4 +959,46 @@ contract DAOtest is Test {
         treasury.spendFunds(proposalId, address(0), 1 ether, address(0));
         vm.stopPrank();
     }
+
+    function test_RevertWhen_SpendFundsZeroAmount() public {
+        vm.startPrank(user1);
+        uint256 proposalId = createTestProposal("Test proposal");
+        vm.stopPrank();
+
+        vm.startPrank(address(dao));
+        treasury.approveProposal(proposalId);
+        vm.expectRevert("Amount must be greater than 0");
+        treasury.spendFunds(proposalId, user1, 0, address(0));
+        vm.stopPrank();
+    }
+
+    function test_RevertWhen_SpendFundsInsufficientEthBalance() public {
+        vm.startPrank(user1);
+        uint256 proposalId = createTestProposal("Test proposal");
+        vm.stopPrank();
+
+        vm.startPrank(address(dao));
+        treasury.approveProposal(proposalId);
+        vm.expectRevert("Insuficient ETH balance");
+        treasury.spendFunds(proposalId, user1, 1 ether, address(0));
+        vm.stopPrank();
+    }
+
+    function testSpendFundsWithToken() public {
+        uint256 fundingAmount = 1000 * 10 ** 18;
+
+        vm.startPrank(user1);
+        governanceToken.approve(address(treasury), fundingAmount);
+        treasury.fundTreasuryWithToken(address(governanceToken), fundingAmount);
+        uint256 proposalId = dao.createProposal("Token spending proposal", user2, fundingAmount, address(governanceToken));
+        vm.stopPrank();
+
+        vm.startPrank(address(dao));
+        treasury.approveProposal(proposalId);
+        treasury.spendFunds(proposalId, user2, fundingAmount, address(governanceToken));
+        vm.stopPrank();
+
+        assertEq(treasury.getBalance(address(governanceToken)), 0);
+        assertTrue(treasury.isProposalExecuted(proposalId));
+    }
 }
