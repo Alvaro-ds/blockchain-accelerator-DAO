@@ -423,4 +423,91 @@ contract DAOtest is Test {
         treasury.spendFunds(proposalId, user1, spendingAmount, address(0));
         vm.stopPrank();
     }
+
+    function testEmergencyWithdraw() public {
+        uint256 fundingAmount = 10 ether;
+        uint256 withdrawAmount = 5 ether;
+
+        vm.deal(user1, fundingAmount);
+        vm.startPrank(user1);
+        treasury.fundTreasury{value: fundingAmount}();
+        vm.stopPrank();
+
+        vm.startPrank(owner);
+        treasury.emergencyWithdraw(address(0), withdrawAmount, user2);
+        vm.stopPrank();
+
+        assertEq(user2.balance, withdrawAmount);
+        assertEq(treasury.getBalance(address(0)), fundingAmount - withdrawAmount);
+    }
+
+    function test_RevertsWhen_EmergencyWithdrawCallerNotOwner() public{
+        uint256 fundingAmount = 10 ether;
+        uint256 withdrawAmount = 5 ether;
+
+        vm.deal(user1, fundingAmount);
+        vm.startPrank(user1);
+        treasury.fundTreasury{value: fundingAmount}();
+
+        vm.expectRevert(abi.encodeWithSelector(Ownable.OwnableUnauthorizedAccount.selector, user1));
+        treasury.emergencyWithdraw(address(0), withdrawAmount, user2);
+        vm.stopPrank();
+    }
+
+    function testCompleteDAOWorkflow() public {
+        // Fund treasury with ETH first
+        uint256 fundingAmount = 10 ether;
+        vm.deal(user1, fundingAmount);
+        vm.startPrank(user1);
+        treasury.fundTreasury{value: fundingAmount}();
+        vm.stopPrank();
+
+        // Delegate voting power
+        vm.startPrank(user1);
+        governanceToken.delegateVotingPower(delegate, 20000 * 10**18);
+        vm.stopPrank();
+
+        // Create proposal
+        vm.startPrank(delegate);
+        uint256 proposalId = dao.createProposal(
+            "Fund project development", 
+            user1, 
+            1 ether, 
+            address(0)
+        );
+        vm.stopPrank();
+
+        // Vote on proposal
+        vm.startPrank(user2);
+        dao.vote(proposalId, true);
+        vm.stopPrank();
+
+        vm.startPrank(user3);
+        dao.vote(proposalId, false);
+        vm.stopPrank();
+
+        vm.warp(block.timestamp + VOTING_PERIOD + 1);
+
+        vm.startPrank(delegate);
+        dao.executeProposal(proposalId);
+        vm.stopPrank();
+
+        // Verify execution
+        (,,,,,, bool executed,,,,) = dao.getProposal(proposalId);
+        assertTrue(executed);
+    }
+
+    function testConfigurationUpdate() public {
+        uint256 _proposalThreshold = 20000000000000 * 10**18;
+        uint256 _votingPeriod = 14;
+        uint256 _quorumVotes = 2500000000000 * 10**18;
+
+        vm.startPrank(owner);
+        dao.updateConfiguration(_proposalThreshold, _votingPeriod, _quorumVotes);
+        vm.stopPrank();
+
+        assertEq(dao.proposalThreshold(), _proposalThreshold);
+        assertEq(dao.votingPeriod(), _votingPeriod);
+        assertEq(dao.quorumVotes(), _quorumVotes);
+    }
 }

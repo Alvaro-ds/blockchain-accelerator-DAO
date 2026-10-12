@@ -45,9 +45,9 @@ contract DAO is Ownable{
     }
 
     // DAO configuration
-    uint256 proposalThreshold;
-    uint256 votingPeriod;
-    uint256 quorumVotes;
+    uint256 public proposalThreshold;
+    uint256 public votingPeriod;
+    uint256 public quorumVotes;
 
     // Proposal tracking
     uint256 public proposalCount;
