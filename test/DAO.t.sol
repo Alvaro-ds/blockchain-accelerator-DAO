@@ -510,4 +510,33 @@ contract DAOtest is Test {
         assertEq(dao.votingPeriod(), _votingPeriod);
         assertEq(dao.quorumVotes(), _quorumVotes);
     }
+
+    function testOnlyOwnerCanSetDAO() public{
+        vm.startPrank(user1);
+        vm.expectRevert(abi.encodeWithSelector(Ownable.OwnableUnauthorizedAccount.selector, user1));
+        treasury.setDAO(address(dao));
+        vm.stopPrank();
+    }
+
+    function testRevertsWhenFundingTreasuryWith_0ETH() public{
+        vm.startPrank(user1);
+        vm.expectRevert("Must send ETH");
+        treasury.fundTreasury{value: 0}();
+        vm.stopPrank();
+    }
+
+    function testRevertsWhenFundingTreasuryWith_0Token() public {
+        vm.startPrank(user1);
+        vm.expectRevert("Amount must be greater than 0");
+        treasury.fundTreasuryWithToken(address(governanceToken), 0);
+        vm.stopPrank();
+    }
+
+    function testSetTreasury() public{
+        vm.startPrank(owner);
+        dao.setTreasury(address(treasury));
+        vm.stopPrank();
+
+        assertEq(address(dao.treasury()), address(treasury)); 
+    }
 }
