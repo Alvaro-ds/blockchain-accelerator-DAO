@@ -924,4 +924,39 @@ contract DAOtest is Test {
         treasury.approveProposal(proposalId);
         vm.stopPrank();
     }
+
+    function test_RevertWhen_SpendFundsNotByDAO() public {
+        vm.startPrank(user1);
+        vm.expectRevert("Only DAO can spend funds");
+        treasury.spendFunds(0, user1, 1 ether, address(0));
+        vm.stopPrank();
+    }
+
+    function test_RevertWhen_SpendFundsAlreadyExecuted() public {
+        uint256 fundingAmount = 10 ether;
+        vm.deal(user1, fundingAmount);
+        vm.startPrank(user1);
+        treasury.fundTreasury{value: fundingAmount}();
+        uint256 proposalId = createTestProposal("Test proposal");
+        vm.stopPrank();
+
+        vm.startPrank(address(dao));
+        treasury.approveProposal(proposalId);
+        treasury.spendFunds(proposalId, user1, 1 ether, address(0));
+        vm.expectRevert("Proposal already executed");
+        treasury.spendFunds(proposalId, user1, 1 ether, address(0));
+        vm.stopPrank();
+    }
+
+    function test_RevertWhen_SpendFundsZeroRecipient() public {
+        vm.startPrank(user1);
+        uint256 proposalId = createTestProposal("Test proposal");
+        vm.stopPrank();
+
+        vm.startPrank(address(dao));
+        treasury.approveProposal(proposalId);
+        vm.expectRevert("Invalid recipient");
+        treasury.spendFunds(proposalId, address(0), 1 ether, address(0));
+        vm.stopPrank();
+    }
 }
