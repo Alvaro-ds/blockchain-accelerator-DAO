@@ -838,4 +838,55 @@ contract DAOtest is Test {
         vm.warp(block.timestamp + VOTING_PERIOD + 1);
         assertFalse(dao.proposalPassed(proposalId));
     }
+
+    function testProposalPassedReturnsFalseWhenExecuted() public {
+        uint256 fundingAmount = 10 ether;
+        vm.deal(user1, fundingAmount);
+        vm.startPrank(user1);
+        treasury.fundTreasury{value: fundingAmount}();
+        uint256 proposalId = createTestProposal("Test proposal");
+        vm.stopPrank();
+
+        vm.startPrank(user2);
+        dao.vote(proposalId, true);
+        vm.stopPrank();
+
+        vm.warp(block.timestamp + VOTING_PERIOD + 1);
+
+        vm.startPrank(user1);
+        dao.executeProposal(proposalId);
+        vm.stopPrank();
+
+        assertFalse(dao.proposalPassed(proposalId));
+    }
+
+    function testProposalPassedReturnsFalseBeforeVotingEnds() public {
+        vm.startPrank(user1);
+        uint256 proposalId = createTestProposal("Test proposal");
+        vm.stopPrank();
+
+        vm.startPrank(user2);
+        dao.vote(proposalId, true);
+        vm.stopPrank();
+
+        assertFalse(dao.proposalPassed(proposalId));
+    }
+
+    function testProposalPassedReturnsFalseWithTiedVotes() public {
+        vm.startPrank(user1);
+        uint256 proposalId = createTestProposal("Test proposal");
+        vm.stopPrank();
+
+        vm.startPrank(user2);
+        governanceToken.burn(10000 * 10 ** 18);
+        dao.vote(proposalId, true);
+        vm.stopPrank();
+
+        vm.startPrank(user3);
+        dao.vote(proposalId, false);
+        vm.stopPrank();
+
+        vm.warp(block.timestamp + VOTING_PERIOD + 1);
+        assertFalse(dao.proposalPassed(proposalId));
+    }
 }
