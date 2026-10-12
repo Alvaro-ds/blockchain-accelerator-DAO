@@ -9,7 +9,6 @@ import "../src/DAO.sol";
 import "../lib/openzeppelin-contracts/contracts/token/ERC20/ERC20.sol";
 
 contract DAOtest is Test {
-
     // Test addresses
     address public owner = address(1);
     address public user1 = address(2);
@@ -23,12 +22,12 @@ contract DAOtest is Test {
     DAOTreasury public treasury;
 
     // Test parameters
-    uint256 public constant INITIAL_SUPPLY = 1000000 * 10**18; // 1M tokens
-    uint256 public constant PROPOSAL_THRESHOLD = 1000 * 10**18; // 1K tokens
-    uint256 public constant VOTING_PERIOD = 7 days; 
-    uint256 public constant QUORUM_VOTES = 10000 * 10**18; // 10K tokens
+    uint256 public constant INITIAL_SUPPLY = 1000000 * 10 ** 18; // 1M tokens
+    uint256 public constant PROPOSAL_THRESHOLD = 1000 * 10 ** 18; // 1K tokens
+    uint256 public constant VOTING_PERIOD = 7 days;
+    uint256 public constant QUORUM_VOTES = 10000 * 10 ** 18; // 10K tokens
 
-    // Events to test 
+    // Events to test
     event ProposalCreated(uint256 indexed proposalId, address indexed proposer, string description, address recipient, uint256 amount, address token, uint256 startTime, uint256 endTime);
     event Voted(uint256 indexed proposalId, address indexed voter, bool support, uint256 votes);
     event ProposalExecuted(uint256 indexed proposalId);
@@ -49,17 +48,17 @@ contract DAOtest is Test {
         treasury.setDAO(address(dao));
 
         // Distribute tokens to test users
-        governanceToken.mint(user1, 50000 * 10**18);
-        governanceToken.mint(user2, 30000 * 10**18);
-        governanceToken.mint(user3, 20000 * 10**18);
+        governanceToken.mint(user1, 50000 * 10 ** 18);
+        governanceToken.mint(user2, 30000 * 10 ** 18);
+        governanceToken.mint(user3, 20000 * 10 ** 18);
         vm.stopPrank();
     }
 
     // ===================== Helper Functions =================
 
-    function createTestProposal(string memory description) internal returns(uint256 proposalID) {
+    function createTestProposal(string memory description) internal returns (uint256 proposalID) {
         return dao.createProposal(
-            description, 
+            description,
             user1, // recipient
             1 ether, // amount: 1 ETH
             address(0) // token: ETH
@@ -67,16 +66,16 @@ contract DAOtest is Test {
     }
 
     // ============= Governance Token Tests ==============
-    
-    function testTokenInicialization() public view{
+
+    function testTokenInicialization() public view {
         assertEq(governanceToken.name(), "DAO Token");
         assertEq(governanceToken.symbol(), "DAO");
-        assertEq(governanceToken.totalSupply(), 1100000 * 10**18); // Initial + minted to users
+        assertEq(governanceToken.totalSupply(), 1100000 * 10 ** 18); // Initial + minted to users
         assertEq(governanceToken.balanceOf(owner), INITIAL_SUPPLY); // Initial supply
     }
 
     function testTokenMinting() public {
-        uint256 mintAmount = 1000 * 10**18;
+        uint256 mintAmount = 1000 * 10 ** 18;
         uint256 user1Amount = governanceToken.balanceOf(user1);
 
         vm.startPrank(owner);
@@ -88,7 +87,7 @@ contract DAOtest is Test {
 
     function testTokenBurning() public {
         uint256 user1Amount = governanceToken.balanceOf(user1);
-        uint256 burnAmount = 1000 * 10**18;
+        uint256 burnAmount = 1000 * 10 ** 18;
 
         vm.startPrank(user1);
         governanceToken.burn(burnAmount);
@@ -99,7 +98,7 @@ contract DAOtest is Test {
 
     function testVotingPowerDelegation() public {
         uint256 user1Amount = governanceToken.getVotingPower(user1);
-        uint256 delegateAmount = 10000 * 10**18;
+        uint256 delegateAmount = 10000 * 10 ** 18;
 
         vm.startPrank(user1);
         governanceToken.delegateVotingPower(delegate, delegateAmount);
@@ -113,22 +112,22 @@ contract DAOtest is Test {
 
     function testVotingPowerUndelegation() public {
         uint256 user1Amount = governanceToken.getVotingPower(user1);
-        uint256 delegateAmount = 10000 * 10**18;
+        uint256 delegateAmount = 10000 * 10 ** 18;
 
         vm.startPrank(user1);
         governanceToken.delegateVotingPower(delegate, delegateAmount);
         uint256 delegateBalance = governanceToken.getVotingPower(delegate);
-        
-        uint256 undelegateAmount = 5000 * 10**18;
+
+        uint256 undelegateAmount = 5000 * 10 ** 18;
         governanceToken.undelegateVotingPower(undelegateAmount);
         vm.stopPrank();
-        
+
         assertEq(governanceToken.getVotingPower(delegate), delegateBalance - undelegateAmount);
         assertEq(governanceToken.getVotingPower(user1), (user1Amount - delegateAmount) + undelegateAmount);
     }
 
     function test_RevertWhen_DelegationToZeroAddress() public {
-        uint256 delegateAmount = 1000 * 10**18;
+        uint256 delegateAmount = 1000 * 10 ** 18;
 
         vm.startPrank(user1);
         vm.expectRevert("Cannot delegate to zero address");
@@ -137,7 +136,7 @@ contract DAOtest is Test {
     }
 
     function test_RevertWhen_DelegationToSelf() public {
-        uint256 delegateAmount = 1000 * 10**18;
+        uint256 delegateAmount = 1000 * 10 ** 18;
 
         vm.startPrank(user1);
         vm.expectRevert("Cannot delegate to self");
@@ -156,7 +155,7 @@ contract DAOtest is Test {
         assertEq(proposalId, 0);
         assertEq(dao.proposalCount(), 1);
 
-        (address proposer, string memory desc, , , uint256 startTime, uint256 endTime, bool executed, bool canceled,,,) = dao.getProposal(0);
+        (address proposer, string memory desc,,, uint256 startTime, uint256 endTime, bool executed, bool canceled,,,) = dao.getProposal(0);
         assertEq(proposer, user1);
         assertEq(desc, description);
         assertEq(startTime, block.timestamp);
@@ -181,7 +180,7 @@ contract DAOtest is Test {
         dao.vote(proposalId, false);
         vm.stopPrank();
 
-        (,, uint256 forVotes, uint256 againstVotes, , , bool executed, bool canceled, , ,) = dao.getProposal(proposalId);
+        (,, uint256 forVotes, uint256 againstVotes,,, bool executed, bool canceled,,,) = dao.getProposal(proposalId);
         assertEq(forVotes, governanceToken.getVotingPower(user2));
         assertEq(againstVotes, governanceToken.getVotingPower(user3));
         assertFalse(executed);
@@ -250,38 +249,38 @@ contract DAOtest is Test {
         vm.startPrank(user1);
         treasury.fundTreasury{value: fundingAmount}();
         vm.stopPrank();
-        
+
         // Create proposal
         vm.startPrank(user1);
         uint256 proposalId = createTestProposal("Test proposal");
         vm.stopPrank();
-        
+
         // We make user3 to burn some tokens so he does not reach the quorum
         vm.startPrank(user3);
-        governanceToken.burn(15000 * 10**18);
+        governanceToken.burn(15000 * 10 ** 18);
         dao.vote(proposalId, true);
         vm.stopPrank();
-        
+
         // Fast forward past voting period
         vm.warp(block.timestamp + VOTING_PERIOD + 1);
-        
+
         vm.startPrank(user1);
         vm.expectRevert("Quorum not reached");
         dao.executeProposal(proposalId);
         vm.stopPrank();
-        
+
         (,,,,,, bool executed,,,,) = dao.getProposal(proposalId);
         assertFalse(executed);
     }
 
-    function testProposalCancellation() public{
+    function testProposalCancellation() public {
         // Create proposal
         vm.startPrank(user1);
         uint256 proposalId = createTestProposal("Test proposal");
         dao.cancelProposal(proposalId);
         vm.stopPrank();
 
-        (,,,,,,, bool canceled,,,)= dao.getProposal(proposalId);
+        (,,,,,,, bool canceled,,,) = dao.getProposal(proposalId);
         assertTrue(canceled);
     }
 
@@ -295,7 +294,7 @@ contract DAOtest is Test {
         dao.cancelProposal(proposalId);
         vm.stopPrank();
 
-        (,,,,,,, bool canceled,,,)= dao.getProposal(proposalId);
+        (,,,,,,, bool canceled,,,) = dao.getProposal(proposalId);
         assertFalse(canceled);
     }
 
@@ -323,7 +322,7 @@ contract DAOtest is Test {
         vm.startPrank(user1);
         treasury.fundTreasury{value: fundingAmount}();
         vm.stopPrank();
-        
+
         vm.startPrank(user1);
         uint256 proposalId = createTestProposal("Test proposal");
         vm.stopPrank();
@@ -344,9 +343,9 @@ contract DAOtest is Test {
 
     // ============= Treasury Tests ===========
 
-    function testTreasuryFunding() public{
+    function testTreasuryFunding() public {
         uint256 fundingAmount = 10 ether;
-        
+
         vm.deal(user1, fundingAmount);
         vm.startPrank(user1);
         treasury.fundTreasury{value: fundingAmount}();
@@ -356,7 +355,7 @@ contract DAOtest is Test {
     }
 
     function testTreasuryTokenFunding() public {
-        uint fundingAmount = 1000 * 10**18;
+        uint256 fundingAmount = 1000 * 10 ** 18;
 
         vm.startPrank(user1);
         governanceToken.approve(address(treasury), fundingAmount);
@@ -370,7 +369,7 @@ contract DAOtest is Test {
         vm.startPrank(user1);
         uint256 proposalId = createTestProposal("Test proposal");
         vm.stopPrank();
-        
+
         vm.startPrank(address(dao));
         treasury.approveProposal(proposalId);
         vm.stopPrank();
@@ -392,7 +391,7 @@ contract DAOtest is Test {
         vm.deal(user1, fundingAmount);
         vm.startPrank(user1);
         treasury.fundTreasury{value: fundingAmount}();
-        
+
         uint256 proposalId = createTestProposal("Test proposal");
         vm.stopPrank();
 
@@ -414,7 +413,7 @@ contract DAOtest is Test {
         vm.deal(user1, fundingAmount);
         vm.startPrank(user1);
         treasury.fundTreasury{value: fundingAmount}();
-        
+
         uint256 proposalId = createTestProposal("Test proposal");
         vm.stopPrank();
 
@@ -441,7 +440,7 @@ contract DAOtest is Test {
         assertEq(treasury.getBalance(address(0)), fundingAmount - withdrawAmount);
     }
 
-    function test_RevertsWhen_EmergencyWithdrawCallerNotOwner() public{
+    function test_RevertsWhen_EmergencyWithdrawCallerNotOwner() public {
         uint256 fundingAmount = 10 ether;
         uint256 withdrawAmount = 5 ether;
 
@@ -464,17 +463,12 @@ contract DAOtest is Test {
 
         // Delegate voting power
         vm.startPrank(user1);
-        governanceToken.delegateVotingPower(delegate, 20000 * 10**18);
+        governanceToken.delegateVotingPower(delegate, 20000 * 10 ** 18);
         vm.stopPrank();
 
         // Create proposal
         vm.startPrank(delegate);
-        uint256 proposalId = dao.createProposal(
-            "Fund project development", 
-            user1, 
-            1 ether, 
-            address(0)
-        );
+        uint256 proposalId = dao.createProposal("Fund project development", user1, 1 ether, address(0));
         vm.stopPrank();
 
         // Vote on proposal
@@ -498,9 +492,9 @@ contract DAOtest is Test {
     }
 
     function testConfigurationUpdate() public {
-        uint256 _proposalThreshold = 20000000000000 * 10**18;
+        uint256 _proposalThreshold = 20000000000000 * 10 ** 18;
         uint256 _votingPeriod = 14;
-        uint256 _quorumVotes = 2500000000000 * 10**18;
+        uint256 _quorumVotes = 2500000000000 * 10 ** 18;
 
         vm.startPrank(owner);
         dao.updateConfiguration(_proposalThreshold, _votingPeriod, _quorumVotes);
@@ -511,14 +505,14 @@ contract DAOtest is Test {
         assertEq(dao.quorumVotes(), _quorumVotes);
     }
 
-    function testOnlyOwnerCanSetDAO() public{
+    function testOnlyOwnerCanSetDAO() public {
         vm.startPrank(user1);
         vm.expectRevert(abi.encodeWithSelector(Ownable.OwnableUnauthorizedAccount.selector, user1));
         treasury.setDAO(address(dao));
         vm.stopPrank();
     }
 
-    function testRevertsWhenFundingTreasuryWith_0ETH() public{
+    function testRevertsWhenFundingTreasuryWith_0ETH() public {
         vm.startPrank(user1);
         vm.expectRevert("Must send ETH");
         treasury.fundTreasury{value: 0}();
@@ -532,11 +526,35 @@ contract DAOtest is Test {
         vm.stopPrank();
     }
 
-    function testSetTreasury() public{
+    function testSetTreasury() public {
         vm.startPrank(owner);
         dao.setTreasury(address(treasury));
         vm.stopPrank();
 
-        assertEq(address(dao.treasury()), address(treasury)); 
+        assertEq(address(dao.treasury()), address(treasury));
+    }
+
+    // ============= Branch Coverage: GovernanceToken Delegation ==============
+
+    function test_RevertWhen_DelegationZeroAmount() public {
+        vm.startPrank(user1);
+        vm.expectRevert("Amount must be greater than 0");
+        governanceToken.delegateVotingPower(delegate, 0);
+        vm.stopPrank();
+    }
+
+    function test_RevertWhen_DelegationInsufficientBalance() public {
+        uint256 user1Balance = governanceToken.balanceOf(user1);
+        vm.startPrank(user1);
+        vm.expectRevert("Insufficient balance");
+        governanceToken.delegateVotingPower(delegate, user1Balance);
+        vm.stopPrank();
+    }
+
+    function test_RevertWhen_UndelegateWithoutDelegation() public {
+        vm.startPrank(user2);
+        vm.expectRevert("No delegation found");
+        governanceToken.undelegateVotingPower(1000 * 10 ** 18);
+        vm.stopPrank();
     }
 }
