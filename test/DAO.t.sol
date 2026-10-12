@@ -683,4 +683,39 @@ contract DAOtest is Test {
         dao.vote(proposalId, true);
         vm.stopPrank();
     }
+
+    function test_RevertWhen_VoteWithNoVotingPower() public {
+        vm.startPrank(user1);
+        uint256 proposalId = createTestProposal("Test proposal");
+        vm.stopPrank();
+
+        address noTokenUser = address(6);
+        vm.startPrank(noTokenUser);
+        vm.expectRevert("No voting power");
+        dao.vote(proposalId, true);
+        vm.stopPrank();
+    }
+
+    // ============= Branch Coverage: DAO Execute ==============
+
+    function test_RevertWhen_ExecuteNonExistentProposal() public {
+        vm.startPrank(user1);
+        vm.expectRevert("Proposal does not exists");
+        dao.executeProposal(999);
+        vm.stopPrank();
+    }
+
+    function test_RevertWhen_ExecuteCanceledProposal() public {
+        vm.startPrank(user1);
+        uint256 proposalId = createTestProposal("Test proposal");
+        dao.cancelProposal(proposalId);
+        vm.stopPrank();
+
+        vm.warp(block.timestamp + VOTING_PERIOD + 1);
+
+        vm.startPrank(user2);
+        vm.expectRevert("Proposal is canceled");
+        dao.executeProposal(proposalId);
+        vm.stopPrank();
+    }
 }
