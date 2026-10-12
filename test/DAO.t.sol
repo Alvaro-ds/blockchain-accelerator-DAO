@@ -557,4 +557,34 @@ contract DAOtest is Test {
         governanceToken.undelegateVotingPower(1000 * 10 ** 18);
         vm.stopPrank();
     }
+
+    function test_RevertWhen_UndelegateZeroAmount() public {
+        uint256 delegateAmount = 5000 * 10 ** 18;
+        vm.startPrank(user1);
+        governanceToken.delegateVotingPower(delegate, delegateAmount);
+        vm.expectRevert("Amount must be greater than 0");
+        governanceToken.undelegateVotingPower(0);
+        vm.stopPrank();
+    }
+
+    function test_RevertWhen_UndelegateExcessAmount() public {
+        uint256 delegateAmount = 5000 * 10 ** 18;
+        vm.startPrank(user1);
+        governanceToken.delegateVotingPower(delegate, delegateAmount);
+        vm.expectRevert("Insufficient delegated amount");
+        governanceToken.undelegateVotingPower(delegateAmount + 1);
+        vm.stopPrank();
+    }
+
+    function testFullUndelegation() public {
+        uint256 delegateAmount = 5000 * 10 ** 18;
+        vm.startPrank(user1);
+        governanceToken.delegateVotingPower(delegate, delegateAmount);
+        governanceToken.undelegateVotingPower(delegateAmount);
+        vm.stopPrank();
+
+        assertFalse(governanceToken.hasDelegated(user1));
+        assertEq(governanceToken.delegates(user1), address(0));
+        assertEq(governanceToken.delegatedVotes(delegate), 0);
+    }
 }
