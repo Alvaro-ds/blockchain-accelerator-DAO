@@ -634,4 +634,53 @@ contract DAOtest is Test {
         dao.vote(999, true);
         vm.stopPrank();
     }
+
+    function test_RevertWhen_VoteAfterEnd() public {
+        vm.startPrank(user1);
+        uint256 proposalId = createTestProposal("Test proposal");
+        vm.stopPrank();
+
+        vm.warp(block.timestamp + VOTING_PERIOD + 1);
+
+        vm.startPrank(user2);
+        vm.expectRevert("Voting ended");
+        dao.vote(proposalId, true);
+        vm.stopPrank();
+    }
+
+    function test_RevertWhen_VoteOnCanceledProposal() public {
+        vm.startPrank(user1);
+        uint256 proposalId = createTestProposal("Test proposal");
+        dao.cancelProposal(proposalId);
+        vm.stopPrank();
+
+        vm.startPrank(user2);
+        vm.expectRevert("Proposal is canceled");
+        dao.vote(proposalId, true);
+        vm.stopPrank();
+    }
+
+    function test_RevertWhen_VoteOnExecutedProposal() public {
+        uint256 fundingAmount = 10 ether;
+        vm.deal(user1, fundingAmount);
+        vm.startPrank(user1);
+        treasury.fundTreasury{value: fundingAmount}();
+        uint256 proposalId = createTestProposal("Test proposal");
+        vm.stopPrank();
+
+        vm.startPrank(user2);
+        dao.vote(proposalId, true);
+        vm.stopPrank();
+
+        vm.warp(block.timestamp + VOTING_PERIOD + 1);
+
+        vm.startPrank(user1);
+        dao.executeProposal(proposalId);
+        vm.stopPrank();
+
+        vm.startPrank(user3);
+        vm.expectRevert("Voting ended");
+        dao.vote(proposalId, true);
+        vm.stopPrank();
+    }
 }
