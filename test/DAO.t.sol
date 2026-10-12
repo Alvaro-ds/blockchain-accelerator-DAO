@@ -1001,4 +1001,41 @@ contract DAOtest is Test {
         assertEq(treasury.getBalance(address(governanceToken)), 0);
         assertTrue(treasury.isProposalExecuted(proposalId));
     }
+
+    function test_RevertWhen_SpendFundsInsufficientTokenBalance() public {
+        vm.startPrank(user1);
+        uint256 proposalId = dao.createProposal("Token spending proposal", user2, 1000 * 10 ** 18, address(governanceToken));
+        vm.stopPrank();
+
+        vm.startPrank(address(dao));
+        treasury.approveProposal(proposalId);
+        vm.expectRevert("Insufficient token balance");
+        treasury.spendFunds(proposalId, user2, 1000 * 10 ** 18, address(governanceToken));
+        vm.stopPrank();
+    }
+
+    function testReceiveFunctionAcceptsETH() public {
+        uint256 sendAmount = 5 ether;
+        vm.deal(user1, sendAmount);
+
+        vm.startPrank(user1);
+        (bool success,) = address(treasury).call{value: sendAmount}("");
+        vm.stopPrank();
+
+        assertTrue(success);
+        assertEq(treasury.getBalance(address(0)), sendAmount);
+    }
+
+    function test_RevertWhen_EmergencyWithdrawZeroRecipient() public {
+        uint256 fundingAmount = 5 ether;
+        vm.deal(user1, fundingAmount);
+        vm.startPrank(user1);
+        treasury.fundTreasury{value: fundingAmount}();
+        vm.stopPrank();
+
+        vm.startPrank(owner);
+        vm.expectRevert("Invalid receipient");
+        treasury.emergencyWithdraw(address(0), 1 ether, address(0));
+        vm.stopPrank();
+    }
 }
